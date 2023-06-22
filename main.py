@@ -7,6 +7,8 @@ import wget
 import os
 import xml.etree.ElementTree as ET
 import requests
+
+
 # Курс валют
 def get_current():
     url = "https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5"
@@ -18,6 +20,7 @@ def get_current():
             usd_sale = currency["sale"]
             break
     return float(usd_sale)
+
 
 def download_price_sun():
     sun_url = 'http://suncomp.com.ua/sun_notebook_parts.xls'
@@ -33,6 +36,20 @@ def download_price_sun():
     wget.download(sun_url, '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/sun_notebook_parts.xls')
 
 
+def download_price_arc():
+    l4_url = 'http://opt.arc.com.ua/files/xml/optfullimport.xml'
+
+    file_path = '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/optfullimport.xml'
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f'Файл {file_path} удален.')
+    else:
+        print(f'Файл {file_path} не найден.')
+
+    wget.download(l4_url, '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/optfullimport.xml')
+
+
 def download_price_4l():
     l4_url = 'https://4laptop.kiev.ua/price/google.xml'
 
@@ -45,6 +62,7 @@ def download_price_4l():
         print(f'Файл {file_path} не найден.')
 
     wget.download(l4_url, '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/google.xml')
+
 
 def download_price_ak():
     session = requests.Session()
@@ -65,18 +83,31 @@ def download_price_ak():
         file.write(response.content)
 
 
+def download_price_pp():
+    pp_url = 'https://parser-powerplant.tk/download/PowerPlant_Price_U.xls'
+
+    file_path = '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/PowerPlant_Price_U.xls'
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f'Файл {file_path} удален.')
+    else:
+        print(f'Файл {file_path} не найден.')
+
+    wget.download(pp_url, '/home/vasyl/PycharmProjects/Updating-prices-in-the-database/PowerPlant_Price_U.xls')
+
 connection = mysql.connector.connect(
-        host='localhost',
-        port=3306,
-        database='IDs',
-        user='root2',
-        password='qwerty'
-    )
+    host='localhost',
+    port=3306,
+    database='IDs',
+    user='root2',
+    password='qwerty'
+)
 
 # Создаем пустой DataFrame для хранения результирующих данных
-# price_usd = pd.DataFrame(columns=['ID', 'Key_zeto', 'Price_sun', 'Price_dfi', 'Price_arc', 'Price_ak', 'Price_4l', 'Price_pp', 'Price_dc'])
-price_usd = pd.DataFrame(columns=['ID', 'Price_sun', 'Price_dfi', 'Price_arc', 'Price_ak', 'Price_4l'])
+price_usd = pd.DataFrame(columns=['ID', 'Price_sun', 'Price_dfi', 'Price_arc', 'Price_ak', 'Price_4l', 'Price_pp'])
 price_usd = price_usd.set_index('ID')  # Установка индекса
+
 
 def export_code_to_id_list():
     if connection.is_connected():
@@ -98,7 +129,7 @@ def export_code_to_id_list():
             # Цикл по строкам CSV-файла
             for row in csv_reader:
                 # Извлечение значений из строки
-                values = [int(value) if value != '' else None for value in row]
+                values = [value if value != '' else None for value in row]
 
                 # Создание SQL-запроса для вставки данных в таблицу
                 sql = "INSERT INTO id_list (code_zero, code_1, code_2, code_3, code_4, code_5, code_6, code_7) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
@@ -106,12 +137,12 @@ def export_code_to_id_list():
                 # Выполнение SQL-запроса с передачей значений
                 cursor.execute(sql, values)
                 connection.commit()
-    # connection.close()
+    connection.close()
 
 
 def check_sun_price():
     if connection.is_connected():
-        download_price_sun()
+        # download_price_sun()
         print('Соединение с базой данных MySQL успешно установлено.')
         # Чтение данных из файла Excel
         df = pd.read_excel('sun_notebook_parts.xls')
@@ -138,7 +169,7 @@ def check_sun_price():
         # Вывод полученных данных
         return price_usd
     # connection.close()
-    print('Соединение с базой данных MySQL закрыто.')
+    # print('Соединение с базой данных MySQL закрыто.')
 
 
 def check_dfi_price():
@@ -165,7 +196,6 @@ def check_dfi_price():
             # Добавление данных в DataFrame
             df = pd.concat([df, pd.DataFrame({'ID': [item_id], 'Price': [price]})], ignore_index=True)
 
-
     # Поиск каждого ID в таблице id_list и сохранение соответствующих пар
     for _, row in df.iterrows():
         id_to_find = row['ID']
@@ -181,7 +211,7 @@ def check_dfi_price():
 
     # Закрытие соединения с базой данных
     # connection.close()
-    print('Соединение с базой данных MySQL закрыто.')
+    # print('Соединение с базой данных MySQL закрыто.')
 
     # Вывод полученных данных
     return price_usd
@@ -190,7 +220,7 @@ def check_dfi_price():
 def check_4l_price():
     if connection.is_connected():
         print('Соединение с базой данных MySQL успешно установлено.')
-    download_price_4l()
+    # download_price_4l()
     tree = ET.parse('google.xml')
     root = tree.getroot()
 
@@ -209,7 +239,6 @@ def check_4l_price():
                 price = round(price, 2)
 
             df = pd.concat([df, pd.DataFrame({'ID': [item_id], 'Price': [price]})], ignore_index=True)
-
 
     # Поиск каждого ID в таблице id_list и сохранение соответствующих пар
     for _, row in df.iterrows():
@@ -233,13 +262,13 @@ def check_4l_price():
 
 
 def check_ak_price():
-    download_price_ak()
+    # download_price_ak()
     if connection.is_connected():
         print('Соединение с базой данных MySQL успешно установлено.')
         # Чтение данных из файла Excel
         df = pd.read_excel('a-class_price.xlsx', engine='openpyxl')
 
-        df = df.iloc[14:, :]
+        df = df.iloc[13:, :]
 
         # Оставляем только нужные столбцы (ID и Price)
         df = df[['Unnamed: 2', 'Unnamed: 7']].rename(columns={'Unnamed: 2': 'ID', 'Unnamed: 7': 'Price'})
@@ -247,8 +276,8 @@ def check_ak_price():
         for _, row in df.iterrows():
             id_to_find = row['ID']
             price_to_save = row['Price']
-            if pd.notna(id_to_find):  # Проверка, что значение 'code_1' не равно NaN
-                sql = f"SELECT code_zero FROM id_list WHERE code_4 = '{id_to_find}'"  # Добавление кавычек
+            if pd.notna(id_to_find):  # Проверка, что значение 'code_3' не равно NaN
+                sql = f"SELECT code_zero FROM id_list WHERE code_3 = '{id_to_find}'"  # Добавление кавычек
                 cursor = connection.cursor()
                 cursor.execute(sql)
                 result = cursor.fetchall()
@@ -263,8 +292,82 @@ def check_ak_price():
     print('Соединение с базой данных MySQL закрыто.')
 
 
+def check_arc_price():
+    # download_price_arc()
+    if connection.is_connected():
+        print('Соединение с базой данных MySQL успешно установлено.')
+
+    # Чтение XML файла
+    tree = ET.parse('optfullimport.xml')
+    root = tree.getroot()
+
+    # Создание пустого DataFrame
+    df = pd.DataFrame(columns=['ID', 'Price'])
+
+    for offer in root.find('shop').find('offers').findall('offer'):
+        available = offer.get('available')
+        if available == 'true':
+            item_id = offer.get('id')
+            price = offer.find('price').text
+
+            # Добавление данных в DataFrame
+            df = pd.concat([df, pd.DataFrame({'ID': [item_id], 'Price': [price]})], ignore_index=True)
+
+
+    # Поиск каждого ID в таблице id_list и сохранение соответствующих пар
+    for _, row in df.iterrows():
+        id_to_find = row['ID']
+        price_to_save = row['Price']
+        if pd.notna(id_to_find):
+            sql = f"SELECT code_zero FROM id_list WHERE code_4 = {id_to_find}"
+            cursor = connection.cursor()
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            if result:
+                code_zero = result[0][0]
+                price_usd.loc[code_zero, 'Price_arc'] = price_to_save
+
+    # Вывод полученных данных
+    return price_usd
+
+
+def check_pp_price():
+
+    if connection.is_connected():
+        download_price_pp()
+        current_rate = get_current()
+        print('Соединение с базой данных MySQL успешно установлено.')
+        # Чтение данных из файла Excel
+        df = pd.read_excel('PowerPlant_Price_U.xls', header=4)
+
+        # Оставляем только нужные столбцы (ID и Price)
+        df = df[['Unnamed: 1', 'Unnamed: 3', 'Unnamed: 6']].rename(columns={'Unnamed: 1': 'ID', 'Unnamed: 3': 'Price','Unnamed: 6': 'available'})
+
+        for _, row in df[df['available'] == 'Y'].iterrows():
+            id_to_find = row['ID']
+            price_to_save = row['Price']
+            if pd.notna(id_to_find):  # Проверка, что значение 'code_6' не равно NaN
+                sql = f"SELECT code_zero FROM id_list WHERE code_6 = '{id_to_find}'"
+                cursor = connection.cursor()
+                cursor.execute(sql)
+                result = cursor.fetchall()
+                if result:
+                    code_zero = result[0][0]
+                    price = float(price_to_save)
+                    if current_rate:
+                        price /= current_rate
+                        price = round(price, 2)
+                    price_usd.loc[code_zero, 'Price_pp'] = price
+
+        # Вывод полученных данных
+        return price_usd
+    # connection.close()
+    # print('Соединение с базой данных MySQL закрыто.')
+
 # export_code_to_id_list()
 
+check_pp_price()
+sleep(1)
 check_sun_price()
 sleep(1)
 check_ak_price()
@@ -272,5 +375,6 @@ sleep(1)
 check_dfi_price()
 sleep(1)
 check_4l_price()
+check_arc_price()
 connection.close()
 print(price_usd)
